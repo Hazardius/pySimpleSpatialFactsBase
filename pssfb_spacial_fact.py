@@ -7,6 +7,7 @@
 # DR - disconnected
 # PO - partially overlapping
 # PP - proper part
+# PPI - 
 # EQ - equal
 rel_type = enum(DR = "DR", PO = "PO", PP = "PP", EQ = "EQ")
 
@@ -22,5 +23,5 @@ class spacial_fact(object):
         self.f_relation = rel
 
     def __repr__(self):
-        return str(f_subject) + f_relation + str(f_object)
+        return str(self.f_subject) + self.f_relation + str(self.f_object)
 
