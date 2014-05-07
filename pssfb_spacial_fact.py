@@ -24,4 +24,3 @@ class spacial_fact(object):
 
     def __repr__(self):
         return str(self.f_subject) + self.f_relation + str(self.f_object)
-

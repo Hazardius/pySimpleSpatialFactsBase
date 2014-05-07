@@ -16,4 +16,3 @@ class spacial_object(object):
 
     def __repr__(self):
         return self.o_name + "/" + self.o_type + "/" + str(self.o_nr)
-
