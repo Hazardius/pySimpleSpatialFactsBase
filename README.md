@@ -8,4 +8,5 @@ We can assume that this knowledge is in certain format.
 
 The system should answer simple spacial questions using RCC5.
 Questions are formed in natural language.
+Questions can be asked in multiple lines of stdin.
 
