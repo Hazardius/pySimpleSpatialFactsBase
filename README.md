@@ -10,3 +10,5 @@ The system should answer simple spacial questions using RCC5.
 Questions are formed in natural language.
 Questions can be asked in multiple lines of stdin.
 
+Requirements:
+* python-graph - https://code.google.com/p/python-graph/
