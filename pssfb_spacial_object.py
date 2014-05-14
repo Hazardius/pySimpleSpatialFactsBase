@@ -3,6 +3,8 @@
 
 """ File containing simple spacial object definition. """
 
+import sqlite3
+
 class spacial_object(object):
     o_name = None
     # Unused
@@ -24,3 +26,7 @@ class spacial_object(object):
         return self.o_name + "/" + str(self.o_nr) + "/" + str(self.o_comp)
         # Unused
         # return self.o_name + "/" + self.o_type + "/" + str(self.o_nr) + "/" + str(self.o_comp)
+
+    def __conform__(self, protocol):
+        if protocol is sqlite3.PrepareProtocol:
+            return "%f;%f" % (self.x, self.y)
