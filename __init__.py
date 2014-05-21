@@ -3,24 +3,30 @@
 
 """ Main file of pssfb. """
 
-from sqlite3 import dbapi2 as sqlite
-
-from pygraph.classes.digraph import digraph
-from pygraph.readwrite.markup-module import markup
+import networkx as nx
+from networkx.readwrite import json_graph
 
 from pssfb_files import open_file, save_file
+from pssfb_spacial_fact import _compose_ as _comp_rel_
 from pssfb_spacial_object import spacial_object
 
 class SimpleSpatialFactsBase(object):
 
     def __init__(self, filename):
+        self.filename = filename
         try:
-            self.graph = markup.read(open_file(filename))
+            self.graph = nx.read_edgelist(filename, nodetype=spacial_object, \
+                create_using=nx.DiGraph(), data=(('relation',str),), \
+                delimiter="@|@")
         except:
-            self.graph = digraph()
+            self.graph = nx.DiGraph()
 
     def __del__(self):
-        save_file(markup.write(self.graph))
+        nx.write_edgelist(self.graph, self.filename, data=["relation"], \
+            delimiter="@|@")
+
+    def facts_nr(self):
+        return nx.classes.function.number_of_edges(self.graph)
 
     def inject_facts(self, facts, purge=False):
         """
@@ -35,28 +41,70 @@ class SimpleSpatialFactsBase(object):
         I assume that they're not duplicated.
         """
         if purge:
-            self.graph = digraph()
+            self.graph = nx.DiGraph()
         for fact in facts:
             self._inject_fact_(fact)
 
     def _inject_fact_(self, (subject, relation, t_object)):
-        new_name_s = spacial_object(subject)
-        if self.graph.has_node(new_name_s):
-            self._check_consistency_(new_name_s)
-        else:
+        new_name_s = spacial_object(subject, 0)
+        if not new_name_s in self.graph:
             self.graph.add_node(new_name_s)
 
-        new_name_o = spacial_object(t_object)
-        if self.graph.has_node(new_name_o):
-            self._check_consistency_(new_name_o)
-        else:
-            self.graph.add_node(new_name_o)
+        new_name_o = spacial_object(t_object, 0)
+        end = False
+        new_name_o.o_nr -= 1
+        while end == False:
+            new_name_o.o_nr += 1
+            end = self._consistency_run_(new_name_s, new_name_o, (subject, \
+                relation, t_object))
 
-    def _check_consistency_(self, node, (subject, relation, t_object)):
+    def _consistency_run_(self, sub, obj, rel_tup):
+        if obj not in self.graph:
+            self.graph.add_node(obj)
+            self.graph.add_edge(sub, obj, relation=set([rel_tup[1]]))
+            self.graph.add_edge(obj, sub, relation=set([_bin_rel_(rel_tup[1])]))
+            return True
+        elif self._check_consistency_(sub, obj, rel_tup):
+            self.graph.add_node(obj)
+            self.graph.add_edge(sub, obj, relation=set([rel_tup[1]]))
+            self.graph.add_edge(obj, sub, relation=set([_bin_rel_(rel_tup[1])]))
+            return True
+        return False
+
+    def _check_consistency_(self, my_start, my_node, (subject, relation, \
+            t_object)):
+        G = nx.DiGraph(self.graph)
+        if my_node in G:
+            if nx.algorithms.shortest_paths.generic.has_path(G, my_start, \
+                my_node):
+                # print "Z " + str(my_start)
+                # print "Do " + str(my_node)
+                path = nx.algorithms.shortest_paths.unweighted.predecessor( \
+                    G, my_start)
+                pred_rel = self._predicted_relation_(path, my_start, my_node)
+                if pred_rel != set([relation]):
+                    return False
         return True
 
+    def _predicted_relation_(self, path, start, target):
+        current = target
+        relation = set(["EQ"])
+        while current != start:
+            next = path[current][0]
+            next_rel = self.graph.edge[next][current]["relation"]
+            current = next
+            relation = _comp_rel_(next_rel, relation)
+            # print str(next) + " -> " + str(target) + " " + str(relation)
+        # print "Happy END"
+        return relation
+
+def _bin_rel_(relation):
+    if relation == "PP":
+        return "PPI"
+    return relation
+
 if __name__ == '__main__':
-    MYSSFB = SimpleSpatialFactsBase("ssfbase.xml")
+    MYSSFB = SimpleSpatialFactsBase("ssfbase.json")
     # TODO: All the things.
     # MYSSFB.inject_facts()
     print "Everything's OK."

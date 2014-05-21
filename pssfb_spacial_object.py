@@ -7,10 +7,26 @@ class spacial_object(object):
     o_name = None
     o_nr = None
 
-    def __init__(self, name, nr=0):
+    def __init__(self, *args, **kwargs):
         """Constructor."""
-        self.o_name = name
-        self.o_nr = nr
+        if len(args) == 2:
+            self.o_name = args[0]
+            self.o_nr = args[1]
+        else:
+            splitted = args[0].split("//")
+            self.o_name = splitted[0]
+            if len(splitted) == 1:
+                self.o_nr = 0
+            else:
+                self.o_nr = int(splitted[1])
 
     def __repr__(self):
-        return self.o_name + "/" + str(self.o_nr)
+        return str(self.o_name) + "//" + str(self.o_nr)
+
+    def __hash__(self):
+        return hash(str(self))
+
+    def __eq__(self, other):
+        if str(self) == str(other):
+            return True
+        return False

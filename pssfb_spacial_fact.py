@@ -48,6 +48,15 @@ class spacial_fact(object):
             # Tried to compose facts without common part!
             return None
 
+def _compose_(prev_rel_set, next_rel_set):
+    new_rel = set()
+    for one_fr_rel in prev_rel_set:
+        if new_rel == ALL_RELATIONS:
+            break;
+        for one_to_rel in next_rel_set:
+            new_rel = new_rel | _compose_relations_(one_fr_rel, one_to_rel)
+    return new_rel
+
 def _compose_relations_(prev_rel, next_rel):
     """ Typical for RCC5. """
     if next_rel == rel_type.EQ:
