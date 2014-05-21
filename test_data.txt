@@ -1,0 +1,16 @@
+Niećkowo@|@DR@|@Szczuczyn
+Szczuczyn@|@DR@|@Grajewo
+Szczuczyn@|@PP@|@Starostwo Grajewo
+Grajewo@|@PP@|@Starostwo Grajewo
+Starostwo Grajewo@|@PP@|@Województwo Podlaskie
+Polska B@|@PPI@|@Województwo Podlaskie
+Polska B@|@PP@|@Polska
+Województwo Wielkopolskie@|@PP@|@Polska
+Wisła@|@PO@|@Województwo Mazowieckie
+Wisła@|@PO@|@Województwo Małopolskie
+Wisła@|@PP@|@Polska
+Wisła@|@PO@|@Trójmiasto
+Gdańsk@|@PP@|@Trójmiasto
+Sopot@|@PP@|@Trójmiasto
+Niećkowo@|@EQ@|@Galindenhoff
+Galindenhoff@|@PP@|@Trzecia Rzesza
