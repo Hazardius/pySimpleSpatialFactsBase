@@ -5,10 +5,10 @@
 
 import sys
 
-import networkx as nx
-from networkx.readwrite import json_graph
+#import networkx as nx
+#from networkx.readwrite import json_graph
 
-from pssfb_files import open_file, save_file, psi_toolkit_pipe
+#from pssfb_files import open_file, save_file, psi_toolkit_pipe
 from pssfb_spacial_fact import _compose_ as _comp_rel_
 from pssfb_spacial_object import spacial_object
 
@@ -106,9 +106,17 @@ def _bin_rel_(relation):
     return relation
 
 def _lemma_(entity):
+# --fallback-tags token
     lemmas = psi_toolkit_pipe(entity, "pl")
     return '_'.join([lemmas[iterat].split("|")[0] for iterat in \
         range(len(lemmas)-1)])
+
+def _parse_to_triple_(question):
+    # Question without "Czy " and "?"
+    q_wo_caqm = question[4:-1]
+    q_type = 0
+    if ()
+    return q_wo_caqm
 
 if __name__ == '__main__':
     MYSSFB = SimpleSpatialFactsBase("ssfbase.json")
@@ -119,18 +127,17 @@ if __name__ == '__main__':
             first_name = _lemma_(parts[0])
             second_name = _lemma_(parts[2])
             if len(first_name) != 0 and len(second_name) != 0:
-                print "\"" + str((first_name, parts[1], second_name)) + "\" added."
                 MYSSFB.inject_facts([(first_name, parts[1], second_name)])
+                print "\"" + str((first_name, parts[1], second_name)) + "\" added."
             else:
                 print "\"" + line[:-1] + "\" was lemmatized poorly."
         print "Time for the end."
     elif work_type == "-a":
         for line in sys.stdin:
-            parts = line.split("@|@")
-            first_name = _lemma_(parts[0].decode('unicode-escape'))
-            second_name = _lemma_(parts[2].decode('unicode-escape'))
+            (first_name, relation, second_name) = _parse_to_triple_(line)
             if len(first_name) > 0 and len(second_name) > 0:
-                print "\"" + str((first_name, parts[1], second_name)) + "\" added."
-                MYSSFB.check_fact([(first_name, parts[1], second_name)])
+                MYSSFB.check_fact([(first_name, relation, second_name)])
             else:
-                print "\"" + line[:-1] + "\" was lemmatized poorly."
+                print "\"" + line[:-1] + "\" was unrecognisable."
+    else:
+        print "Unknown argument!"
