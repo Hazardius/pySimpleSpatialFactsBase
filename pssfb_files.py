@@ -20,5 +20,7 @@ def save_file(path, content):
     f.close()
 
 def psi_toolkit_pipe(text, l_code):
-    psi = PSIToolkit.PipeRunner('lamerlemma --lang ' + l_code + ' ! simple-writer --tags lemma')
+    # --fallback-tags token
+    psi = PSIToolkit.PipeRunner('lamerlemma --lang ' + l_code + \
+        ' ! simple-writer --tags lemma')
     return psi.run(text).split("\n")

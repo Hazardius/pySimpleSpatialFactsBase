@@ -11,4 +11,5 @@ Questions are formed in natural language.
 Questions can be asked in multiple lines of stdin.
 
 Requirements:
+* psi-toolkit - http://psi-toolkit.amu.edu.pl/
 * NetworkX - http://networkx.github.ioh/

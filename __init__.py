@@ -5,12 +5,20 @@
 
 import sys
 
-#import networkx as nx
-#from networkx.readwrite import json_graph
+import networkx as nx
+from networkx.readwrite import json_graph
 
-#from pssfb_files import open_file, save_file, psi_toolkit_pipe
+from pssfb_additional import polish_signs_remove as _psr_
+from pssfb_files import open_file, save_file, psi_toolkit_pipe
 from pssfb_spacial_fact import _compose_ as _comp_rel_
 from pssfb_spacial_object import spacial_object
+
+STEM_VALUE = 4
+EQ_WORDSET = set(["jest równy"])
+DR_WORDSET = set(["nie jest"])
+PO_WORDSET = set(["płynie przez"])
+PP_WORDSET = set(["jest częścią", "częścią"])
+PPI_WORDSET = set(["zawiera"])
 
 class SimpleSpatialFactsBase(object):
 
@@ -24,8 +32,9 @@ class SimpleSpatialFactsBase(object):
             self.graph = nx.DiGraph()
 
     def __del__(self):
-        nx.write_edgelist(self.graph, self.filename, data=["relation"], \
-            delimiter="@|@")
+        if self.graph.edges() == []:
+            nx.write_edgelist(self.graph, self.filename, data=["relation"], \
+                delimiter="@|@")
 
     def facts_nr(self):
         return nx.classes.function.number_of_edges(self.graph)
@@ -47,7 +56,18 @@ class SimpleSpatialFactsBase(object):
         for fact in facts:
             self._inject_fact_(fact)
 
+    def check_fact(self, first_name, relation, second_name):
+        return "True"
+        # return "False"
+        # return "Unknown"
+
+    def _purge_(self):
+        self.graph = nx.DiGraph()
+
     def _inject_fact_(self, (subject, relation, t_object)):
+        subject = _lemma_(subject)
+        t_object = _lemma_(t_object)
+
         new_name_s = spacial_object(subject, 0)
         if not new_name_s in self.graph:
             self.graph.add_node(new_name_s)
@@ -106,38 +126,80 @@ def _bin_rel_(relation):
     return relation
 
 def _lemma_(entity):
-# --fallback-tags token
-    lemmas = psi_toolkit_pipe(entity, "pl")
-    return '_'.join([lemmas[iterat].split("|")[0] for iterat in \
-        range(len(lemmas)-1)])
+    form_ent = entity.lower()
+    form_ent_tab = form_ent.split()
+    table = []
+    # DEBUG prints
+    # print "ent: " + str(form_ent)
+    # print "lem: " + str(lemmas)
+    for iterat in range(len(form_ent_tab)):
+        try_lem = psi_toolkit_pipe(form_ent_tab[iterat], "pl")[0]
+        if len(try_lem) == 0:
+            table += [_psr_(form_ent_tab[iterat])[:STEM_VALUE]]
+        elif "|" in try_lem:
+            table += [_psr_(try_lem.split("|")[0])]
+        else:
+            table += [_psr_(try_lem)]
+    str_lem = '_'.join(table)
+    # print "stl: " + str_lem
+    return str_lem
 
 def _parse_to_triple_(question):
     # Question without "Czy " and "?"
-    q_wo_caqm = question[4:-1]
-    q_type = 0
-    if ()
-    return q_wo_caqm
+    question = question.lower()
+    if question[-1] == "?":
+        question = question[:-1]
+    question = question.replace("to część", "częścią")
+    question = question.replace("to", "jest równy")
+    imp_wds = [word for word in question.split() if (len(word)>3)]
+    if len(imp_wds) == 3:
+        return (imp_wds[0], to_rel(imp_wds[1]), imp_wds[2])
+    #relacja = _find_rel_(imp_wds)
+    return (imp_wds[0], to_rel(imp_wds[1]), imp_wds[2])
 
+# TODO: For each keyword known in WORDSET try to search in sentence
+# Then add first match
+def to_rel(word):
+    ret_val = set()
+    if word in EQ_WORDSET:
+        ret_val.add("EQ")
+    if word in DR_WORDSET:
+        ret_val.add("DR")
+    if word in PP_WORDSET:
+        ret_val.add("PP")
+    if word in PPI_WORDSET:
+        ret_val.add("PPI")
+    if word in PO_WORDSET:
+        ret_val.add("PO")
+    return ret_val
+
+
+# Main function works with polish question "Czy (...)?"
 if __name__ == '__main__':
     MYSSFB = SimpleSpatialFactsBase("ssfbase.json")
-    work_type = sys.argv[1]
-    if work_type == "-f":
-        for line in sys.stdin:
-            parts = line.split("@|@")
-            first_name = _lemma_(parts[0])
-            second_name = _lemma_(parts[2])
-            if len(first_name) != 0 and len(second_name) != 0:
-                MYSSFB.inject_facts([(first_name, parts[1], second_name)])
-                print "\"" + str((first_name, parts[1], second_name)) + "\" added."
-            else:
-                print "\"" + line[:-1] + "\" was lemmatized poorly."
-        print "Time for the end."
-    elif work_type == "-a":
-        for line in sys.stdin:
-            (first_name, relation, second_name) = _parse_to_triple_(line)
-            if len(first_name) > 0 and len(second_name) > 0:
-                MYSSFB.check_fact([(first_name, relation, second_name)])
-            else:
-                print "\"" + line[:-1] + "\" was unrecognisable."
-    else:
+    try:
+        work_type = sys.argv[1][1]
+        if work_type == "f":
+            for line in sys.stdin:
+                parts = line.split("@|@")
+                first_name = _lemma_(parts[0])
+                second_name = _lemma_(parts[2])
+                if len(second_name) == 0:
+                    second_name = parts[2][:6]
+                if len(first_name) != 0 and len(second_name) != 0:
+                    MYSSFB.inject_facts([(first_name, set([parts[1]]), second_name)])
+                    print "\"" + str((first_name, set([parts[1]]), second_name)) + "\" added."
+                else:
+                    print "\"" + line[:-1] + "\" was lemmatized poorly."
+            print "Time for the end."
+        elif work_type == "a":
+            for line in sys.stdin:
+                (first_name, relation, second_name) = _parse_to_triple_(line[:-1])
+                if len(first_name) > 0 and len(second_name) > 0:
+                    answer = MYSSFB.check_fact(first_name, relation, second_name)
+                    print line[:-1] + " @|@ " + answer
+                else:
+                    print "\"" + line[:-1] + "\" was unrecognisable."
+            print "Time for the end."
+    except:
         print "Unknown argument!"
