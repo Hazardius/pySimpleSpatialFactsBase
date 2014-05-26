@@ -76,6 +76,7 @@ class SimpleSpatialFactsBase(object):
         while new_name_s in self.graph:
             new_name_o = spacial_object(to_n, 0)
             while new_name_o in self.graph:
+                # print str(new_name_s) + " -> " + str(new_name_o) + " :"
                 if self._check_consistency_(new_name_s, new_name_o, relation):
                     return True
                 new_name_o.o_nr += 1
@@ -87,7 +88,7 @@ class SimpleSpatialFactsBase(object):
         while new_name_s in self.graph:
             new_name_o = spacial_object(to_n, 0)
             while new_name_o in self.graph:
-                if self._check_consistency_(new_name_s, new_name_o, relation) == False:
+                if self._check_consistency_fals_(new_name_s, new_name_o, relation) == False:
                     return True
                 new_name_o.o_nr += 1
             new_name_s.o_nr += 1
@@ -124,17 +125,28 @@ class SimpleSpatialFactsBase(object):
             return True
         return False
 
+    def _check_consistency_fals_(self, my_start, my_node, relation):
+        if nx.algorithms.shortest_paths.generic.has_path(self.graph, my_start, my_node):
+            # print "Z " + str(my_start)
+            # print "Do " + str(my_node)
+            path = nx.algorithms.shortest_paths.unweighted.predecessor( \
+                self.graph, my_start)
+            pred_rel = self._predicted_relation_(path, my_start, my_node)
+            if relation not in pred_rel:
+                return False
+        return True
+
     def _check_consistency_(self, my_start, my_node, relation):
-        # G = nx.DiGraph(self.graph)
+        # print str(my_start) + " -" + relation + "-> " + str(my_node)
         if my_node in self.graph: #G:
-            if nx.algorithms.shortest_paths.generic.has_path(self.graph, my_start, \
-            # G, my_start, \
-                my_node):
+            if nx.algorithms.shortest_paths.generic.has_path(self.graph, my_start, my_node):
                 # print "Z " + str(my_start)
                 # print "Do " + str(my_node)
                 path = nx.algorithms.shortest_paths.unweighted.predecessor( \
-                    self.graph, my_start)#G, my_start)
+                    self.graph, my_start)
+                # print "Path " + str(path)
                 pred_rel = self._predicted_relation_(path, my_start, my_node)
+                # print "Pred_rel " + str(pred_rel)
                 if pred_rel != set([relation]):
                     return False
         return True
@@ -149,12 +161,13 @@ class SimpleSpatialFactsBase(object):
             # print str(next_rel) + " (X) " + str(relation)
             relation = _comp_rel_(next_rel, relation)
             # print str(next) + " -> " + str(target) + " " + str(relation)
-        # print "Happy END"
         return relation
 
 def _bin_rel_(relation):
     if relation == "PP":
         return "PPI"
+    elif relation == "PPI":
+        return "PP"
     return relation
 
 def _lemma_(entity):
