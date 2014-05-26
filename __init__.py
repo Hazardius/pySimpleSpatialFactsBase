@@ -13,12 +13,9 @@ from pssfb_files import open_file, save_file, psi_toolkit_pipe
 from pssfb_spacial_fact import _compose_ as _comp_rel_
 from pssfb_spacial_object import spacial_object
 
+from relation_phrases import EQ_PHRASES, DR_PHRASES, PO_PHRASES, PP_PHRASES, PPI_PHRASES
+
 STEM_VALUE = 4
-EQ_WORDSET = set(["jest równy"])
-DR_WORDSET = set(["nie jest"])
-PO_WORDSET = set(["płynie przez"])
-PP_WORDSET = set(["jest częścią", "częścią"])
-PPI_WORDSET = set(["zawiera"])
 
 class SimpleSpatialFactsBase(object):
 
@@ -28,11 +25,14 @@ class SimpleSpatialFactsBase(object):
             self.graph = nx.read_edgelist(filename, nodetype=spacial_object, \
                 create_using=nx.DiGraph(), data=(('relation',str),), \
                 delimiter="@|@")
+            for edge in self.graph.edges(data=True):
+                edge[2]['relation'] = eval(edge[2]['relation'])
         except:
             self.graph = nx.DiGraph()
 
     def __del__(self):
-        if self.graph.edges() == []:
+        if self.graph.adj != {}:
+            import networkx as nx
             nx.write_edgelist(self.graph, self.filename, data=["relation"], \
                 delimiter="@|@")
 
@@ -58,6 +58,7 @@ class SimpleSpatialFactsBase(object):
 
     def check_fact(self, line):
         (first_name, relation, second_name) = _parse_to_triple_(line)
+        # print "(" + first_name + ", " + relation + ", " + second_name + ")"
         if len(first_name) > 0 and len(second_name) > 0:
             answer = self._check_fact_(first_name, relation, second_name)
             return answer
@@ -131,7 +132,10 @@ class SimpleSpatialFactsBase(object):
             # print "Do " + str(my_node)
             path = nx.algorithms.shortest_paths.unweighted.predecessor( \
                 self.graph, my_start)
+            # print "Path " + str(path)
             pred_rel = self._predicted_relation_(path, my_start, my_node)
+            # print "Rel " + relation
+            # print "Pred_Rel " + str(pred_rel)
             if relation not in pred_rel:
                 return False
         return True
@@ -171,13 +175,15 @@ def _bin_rel_(relation):
     return relation
 
 def _lemma_(entity):
-    form_ent = entity.lower()
-    form_ent_tab = form_ent.split()
+    form_ent_tab = entity.split()
     table = []
     # DEBUG prints
-    # print "ent: " + str(form_ent)
+    # print "ent: " + str(entity)
     # print "tab: " + str(form_ent_tab)
     for iterat in range(len(form_ent_tab)):
+        if len(form_ent_tab[iterat]) == 1:
+            table += form_ent_tab[iterat]
+            continue
         try_lem = psi_toolkit_pipe(form_ent_tab[iterat], "pl")[0]
         if len(try_lem) == 0:
             table += [_psr_(form_ent_tab[iterat])[:STEM_VALUE]]
@@ -187,36 +193,54 @@ def _lemma_(entity):
             table += [_psr_(try_lem)]
     str_lem = '_'.join(table)
     # print "stl: " + str_lem
-    return str_lem
+    return str_lem.lower()
 
 def _parse_to_triple_(question):
-    # Question without "Czy " and "?"
-    question = question.lower()
+    question = question[4:]
     if question[-1] == "?":
         question = question[:-1]
-    question = question.replace("to część", "częścią")
-    question = question.replace("to", "jest równy")
-    imp_wds = [word for word in question.split() if (len(word)>3)]
-    if len(imp_wds) == 3:
-        return (imp_wds[0], to_rel(imp_wds[1]), imp_wds[2])
-    #relacja = _find_rel_(imp_wds)
-    return (imp_wds[0], to_rel(imp_wds[1]), imp_wds[2])
+    # Question without "Czy " and "?"
+    return to_rel(question)
 
 # TODO: For each keyword known in WORDSET try to search in sentence
 # Then add first match
-def to_rel(word):
-    ret_val = set()
-    if word in EQ_WORDSET:
-        ret_val.add("EQ")
-    if word in DR_WORDSET:
-        ret_val.add("DR")
-    if word in PP_WORDSET:
-        ret_val.add("PP")
-    if word in PPI_WORDSET:
-        ret_val.add("PPI")
-    if word in PO_WORDSET:
-        ret_val.add("PO")
-    return ret_val
+def to_rel(question):
+    for phrase in PPI_PHRASES:
+        if phrase in question:
+            # print "Found \"" + phrase + "\" in:"
+            # print question
+            # print "So -> PPI\n"
+            parts = question.split(phrase)
+            return (_lemma_(parts[0]), "PPI", _lemma_(parts[1]))
+    for phrase in PP_PHRASES:
+        if phrase in question:
+            # print "Found \"" + phrase + "\" in:"
+            # print question
+            # print "So -> PP\n"
+            parts = question.split(phrase)
+            return (_lemma_(parts[0]), "PP", _lemma_(parts[1]))
+    for phrase in PO_PHRASES:
+        if phrase in question:
+            # print "Found \"" + phrase + "\" in:"
+            # print question
+            # print "So -> PO\n"
+            parts = question.split(phrase)
+            return (_lemma_(parts[0]), "PO", _lemma_(parts[1]))
+    for phrase in DR_PHRASES:
+        if phrase in question:
+            # print "Found \"" + phrase + "\" in:"
+            # print question
+            # print "So -> DR\n"
+            parts = question.split(phrase)
+            return (_lemma_(parts[0]), "DR", _lemma_(parts[1]))
+    for phrase in EQ_PHRASES:
+        if phrase in question:
+            # print "Found \"" + phrase + "\" in:"
+            # print question
+            # print "So -> EQ\n"
+            parts = question.split(phrase)
+            return (_lemma_(parts[0]), "EQ", _lemma_(parts[1]))
+    return None
 
 
 # Main function works with polish question "Czy (...)?"
@@ -225,15 +249,24 @@ if __name__ == '__main__':
     try:
         work_type = sys.argv[1][1]
         if work_type == "f":
+            # If --purge - Purge the graph!
+            try:
+                purge = sys.argv[2][2:] 
+                if purge == "purge":
+                    MYSSFB._purge_()
+                    print "Cleared the graph!"
+                print "Start!"
+            except:
+                print "Start!"
             for line in sys.stdin:
                 parts = line.split("@|@")
                 MYSSFB.inject_facts([(parts[0], parts[1], parts[2])])
                 print "\"" + str((parts[0], set([parts[1]]), parts[2])) + "\" added."
-            print "Time for the end."
+            print "End of input."
         elif work_type == "a":
             for line in sys.stdin:
                 answer = MYSSFB.check_fact(line[:-1])
                 print line[:-1] + " @|@ " + answer
-            print "Time for the end."
+            print "End of input."
     except:
         print "Unknown argument!"
