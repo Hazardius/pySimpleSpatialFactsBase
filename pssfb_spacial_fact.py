@@ -71,7 +71,7 @@ def _compose_relations_(prev_rel, next_rel):
         elif prev_rel == rel_type.DR:
             return set([prev_rel])
         else:
-            return next_rel
+            return set([next_rel])
     elif next_rel == rel_type.PP:
         if prev_rel == rel_type.DR:
             return set([rel_type.DR, rel_type.PO, rel_type.PP])

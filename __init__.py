@@ -56,10 +56,42 @@ class SimpleSpatialFactsBase(object):
         for fact in facts:
             self._inject_fact_(fact)
 
-    def check_fact(self, first_name, relation, second_name):
-        return "True"
-        # return "False"
-        # return "Unknown"
+    def check_fact(self, line):
+        (first_name, relation, second_name) = _parse_to_triple_(line)
+        if len(first_name) > 0 and len(second_name) > 0:
+            answer = self._check_fact_(first_name, relation, second_name)
+            return answer
+        else:
+            return "ERROR"
+
+    def _check_fact_(self, first_name, relation, second_name):
+        if self._confirmation_(first_name, second_name, relation):
+            return "True"
+        elif self._falsification_(first_name, second_name, relation):
+            return "False"
+        return "Unknown"
+
+    def _confirmation_(self, from_n, to_n, relation):
+        new_name_s = spacial_object(from_n, 0)
+        while new_name_s in self.graph:
+            new_name_o = spacial_object(to_n, 0)
+            while new_name_o in self.graph:
+                if self._check_consistency_(new_name_s, new_name_o, relation):
+                    return True
+                new_name_o.o_nr += 1
+            new_name_s.o_nr += 1
+        return False
+
+    def _falsification_(self, from_n, to_n, relation):
+        new_name_s = spacial_object(from_n, 0)
+        while new_name_s in self.graph:
+            new_name_o = spacial_object(to_n, 0)
+            while new_name_o in self.graph:
+                if self._check_consistency_(new_name_s, new_name_o, relation) == False:
+                    return True
+                new_name_o.o_nr += 1
+            new_name_s.o_nr += 1
+        return False
 
     def _purge_(self):
         self.graph = nx.DiGraph()
@@ -77,32 +109,31 @@ class SimpleSpatialFactsBase(object):
         new_name_o.o_nr -= 1
         while end == False:
             new_name_o.o_nr += 1
-            end = self._consistency_run_(new_name_s, new_name_o, (subject, \
-                relation, t_object))
+            end = self._consistency_run_(new_name_s, new_name_o, relation)
 
-    def _consistency_run_(self, sub, obj, rel_tup):
+    def _consistency_run_(self, sub, obj, rel):
         if obj not in self.graph:
             self.graph.add_node(obj)
-            self.graph.add_edge(sub, obj, relation=set([rel_tup[1]]))
-            self.graph.add_edge(obj, sub, relation=set([_bin_rel_(rel_tup[1])]))
+            self.graph.add_edge(sub, obj, relation=set([rel]))
+            self.graph.add_edge(obj, sub, relation=set([_bin_rel_(rel)]))
             return True
-        elif self._check_consistency_(sub, obj, rel_tup):
+        elif self._check_consistency_(sub, obj, rel):
             self.graph.add_node(obj)
-            self.graph.add_edge(sub, obj, relation=set([rel_tup[1]]))
-            self.graph.add_edge(obj, sub, relation=set([_bin_rel_(rel_tup[1])]))
+            self.graph.add_edge(sub, obj, relation=set([rel]))
+            self.graph.add_edge(obj, sub, relation=set([_bin_rel_(rel)]))
             return True
         return False
 
-    def _check_consistency_(self, my_start, my_node, (subject, relation, \
-            t_object)):
-        G = nx.DiGraph(self.graph)
-        if my_node in G:
-            if nx.algorithms.shortest_paths.generic.has_path(G, my_start, \
+    def _check_consistency_(self, my_start, my_node, relation):
+        # G = nx.DiGraph(self.graph)
+        if my_node in self.graph: #G:
+            if nx.algorithms.shortest_paths.generic.has_path(self.graph, my_start, \
+            # G, my_start, \
                 my_node):
                 # print "Z " + str(my_start)
                 # print "Do " + str(my_node)
                 path = nx.algorithms.shortest_paths.unweighted.predecessor( \
-                    G, my_start)
+                    self.graph, my_start)#G, my_start)
                 pred_rel = self._predicted_relation_(path, my_start, my_node)
                 if pred_rel != set([relation]):
                     return False
@@ -115,6 +146,7 @@ class SimpleSpatialFactsBase(object):
             next = path[current][0]
             next_rel = self.graph.edge[next][current]["relation"]
             current = next
+            # print str(next_rel) + " (X) " + str(relation)
             relation = _comp_rel_(next_rel, relation)
             # print str(next) + " -> " + str(target) + " " + str(relation)
         # print "Happy END"
@@ -131,7 +163,7 @@ def _lemma_(entity):
     table = []
     # DEBUG prints
     # print "ent: " + str(form_ent)
-    # print "lem: " + str(lemmas)
+    # print "tab: " + str(form_ent_tab)
     for iterat in range(len(form_ent_tab)):
         try_lem = psi_toolkit_pipe(form_ent_tab[iterat], "pl")[0]
         if len(try_lem) == 0:
@@ -182,24 +214,13 @@ if __name__ == '__main__':
         if work_type == "f":
             for line in sys.stdin:
                 parts = line.split("@|@")
-                first_name = _lemma_(parts[0])
-                second_name = _lemma_(parts[2])
-                if len(second_name) == 0:
-                    second_name = parts[2][:6]
-                if len(first_name) != 0 and len(second_name) != 0:
-                    MYSSFB.inject_facts([(first_name, set([parts[1]]), second_name)])
-                    print "\"" + str((first_name, set([parts[1]]), second_name)) + "\" added."
-                else:
-                    print "\"" + line[:-1] + "\" was lemmatized poorly."
+                MYSSFB.inject_facts([(parts[0], parts[1], parts[2])])
+                print "\"" + str((parts[0], set([parts[1]]), parts[2])) + "\" added."
             print "Time for the end."
         elif work_type == "a":
             for line in sys.stdin:
-                (first_name, relation, second_name) = _parse_to_triple_(line[:-1])
-                if len(first_name) > 0 and len(second_name) > 0:
-                    answer = MYSSFB.check_fact(first_name, relation, second_name)
-                    print line[:-1] + " @|@ " + answer
-                else:
-                    print "\"" + line[:-1] + "\" was unrecognisable."
+                answer = MYSSFB.check_fact(line[:-1])
+                print line[:-1] + " @|@ " + answer
             print "Time for the end."
     except:
         print "Unknown argument!"
